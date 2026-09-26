@@ -298,7 +298,7 @@ class Game extends React.Component {
 
     preload() {
         //images
-        this.game.load.image('field', '/img/grass.png');
+        this.game.load.image('field', 'img/grass.png');
         //sounds
         this.soundManager = new SoundManager(this.game, this.onSoundLoad);
         this.soundManager.preload();

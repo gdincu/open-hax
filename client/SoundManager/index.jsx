@@ -8,13 +8,13 @@ class SoundManager {
 	}
 
 	preload () {
-        this.game.load.audio('game-start', '/sounds/game-start.mp3');
-        this.game.load.audio('game-end', '/sounds/game-end.mp3');
-        this.game.load.audio('goal-1', '/sounds/goal-1.mp3');
-        this.game.load.audio('goal-2', '/sounds/goal-2.mp3');
-        this.game.load.audio('people-oh', '/sounds/people-oh.mp3');
-        this.game.load.audio('public-1', '/sounds/public-1.mp3');
-        this.game.load.audio('kick', '/sounds/kick.mp3');
+        this.game.load.audio('game-start', 'sounds/game-start.mp3');
+        this.game.load.audio('game-end', 'sounds/game-end.mp3');
+        this.game.load.audio('goal-1', 'sounds/goal-1.mp3');
+        this.game.load.audio('goal-2', 'sounds/goal-2.mp3');
+        this.game.load.audio('people-oh', 'sounds/people-oh.mp3');
+        this.game.load.audio('public-1', 'sounds/public-1.mp3');
+        this.game.load.audio('kick', 'sounds/kick.mp3');
 	}
 
 	create () {

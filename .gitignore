@@ -13,6 +13,7 @@ Thumbs.db
 # Application specific files
 node_modules
 public/bundle/*
+dist/
 
 # Logs
 logs

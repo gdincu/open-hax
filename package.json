@@ -5,6 +5,7 @@
   "scripts": {
     "watch": "webpack --progress --colors --watch",
     "build": "webpack --progress --colors -p",
+    "build:pages": "npm run build && node scripts/export-pages.js",
     "start": "node ./bin/www"
   },
   "dependencies": {

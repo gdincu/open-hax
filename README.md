@@ -38,6 +38,24 @@ npm start
 Then open your browser at [localhost:3000](http://localhost:3000).
 `npm start` runs `node ./bin/www` (plain node — no `nodemon` needed).
 
+## GitHub Pages
+
+The game is fully client-side (the Express server only serves one static page),
+so it runs on Pages via the `dist/` export:
+
+```
+npm run build:pages
+```
+
+This rebuilds `public/bundle/` and writes the static site to `dist/`
+(`index.html` + `css/` + `js/` + `img/` + `sounds/` + `bundle/`).
+All asset paths are relative (`./...`), so both user pages (`/`) and
+project pages (`/<repo>/`) work.
+
+Deployment is automated by `.github/workflows/deploy-pages.yml`
+(build → `dist/` → Pages artifact). You only need to set, once per repo:
+Settings → Pages → Source: **GitHub Actions**.
+
 ## Project layout
 
 * `app.js`, `bin/www`, `routes/`, `views/` — minimal Express server (static files + one page).
