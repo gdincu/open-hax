@@ -1,25 +1,50 @@
-# OpenHax - Open Source Haxball Clone in HTML5 and Javascript
+# OpenHax — Local 2-Player Haxball Clone
 
-![screenshot](https://github.com/erasmo-marin/open-hax/raw/master/screenshot.png)
+![screenshot](screenshot.png)
 
+OpenHax is a Haxball-style football game played **by 2 players side by side on one PC**.
+There is no online play and no chat — each player uses their own gamepad (e.g. one USB, one Bluetooth).
+Rendering and physics are **Phaser** (P2 physics), UI is **React**, served by a minimal **Express** server.
 
-OpenHax is an open source clone/remake of the famous game Haxball. While the game engine is **Phaser**, it also uses **React** for client-side rendering and Socket.io for game state synchronization.
+## Controls
+
+| | P1 (red, home) | P2 (blue, away) |
+|---|---|---|
+| Gamepad | Pad 0 (e.g. USB) | Pad 1 (e.g. Bluetooth) |
+| Move | Left stick / d-pad | Left stick / d-pad |
+| Kick | A / RT | A / RT |
+| Keyboard fallback | Arrows + X | WASD + Space |
+
+The pad assignment is shown under the field. Tip: press any button on each pad once
+after the page loads, otherwise the browser does not expose it. USB vs Bluetooth
+makes no difference — they are just pad 0 and pad 1.
+
+## Rules
+
+* Score by getting the ball through the opponent's goal mouth (the gap in the side wall).
+* The header scoreboard updates, a goal sound plays, and play restarts from kickoff.
+* The timer in the header counts up from kickoff.
 
 ## Building and running
-
-You can run OpenHax locally in your machine. Just follow the instructions and open your browser at [localhost:3000](localhost:3000)
 
 ```
 git clone https://github.com/erasmo-marin/open-hax.git openHax
 cd openHax
 npm install
 npm run build
-nodemon ./bin/www 
+npm start
 ```
 
-## TODO:
-* Create and administrate room
-* Set nickname and avatar
-* Goals, maps, multiplayer
-* Chat
-* Sockets game state synchronization
+Then open your browser at [localhost:3000](http://localhost:3000).
+`npm start` runs `node ./bin/www` (plain node — no `nodemon` needed).
+
+## Project layout
+
+* `app.js`, `bin/www`, `routes/`, `views/` — minimal Express server (static files + one page).
+* `client/game.jsx` — match setup, goal detection, kickoff reset.
+* `client/Input/` — `GamepadInput` (pad polling, deadzone, standard mapping) and `KeyboardInput` fallbacks.
+* `client/Components/Player/`, `Ball/`, `Field/` — Phaser/P2 entities and the stadium.
+* `client/Stores/GameStore.jsx`, `client/Actions/GameActions.jsx` — dependency-free timer/score store.
+* `client/Components/Header/` — scoreboard and timer display.
+* `public/bundle/` — built client bundle (`npm run build` regenerates it).
+* `public/js/phaser.js` — Phaser runtime (loaded globally, not an npm dep).
