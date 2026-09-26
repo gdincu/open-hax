@@ -1,15 +1,10 @@
-import AppDispatcher from '../Dispatcher/AppDispatcher';
-import ActionTypes from '../Constants/ActionTypes';
+import GameStore from '../Stores/GameStore';
 
 let interval = null;
-let paused = false;
 
 const GameActions = {
     timerSet: (time) => {
-        AppDispatcher.dispatch({
-            actionType: ActionTypes.TIMER_SET,
-            data: time
-        });
+        GameStore.setTimer(time);
     },
     timerStart: () => {
 
@@ -18,10 +13,7 @@ const GameActions = {
     		seconds: 0
     	}
 
-        AppDispatcher.dispatch({
-            actionType: ActionTypes.TIMER_START,
-            data: data
-        });
+        GameStore.setTimer(data);
 
         if(interval != null) {
         	clearInterval(interval);
@@ -35,13 +27,15 @@ const GameActions = {
             }
         	GameActions.timerSet(data);
         }, 1000);
-        
-    },    
+
+    },
     timerEnd: () => {
-        AppDispatcher.dispatch({
-            actionType: ActionTypes.TIMER_END
-        });
-        clearInterval(interval);
+        if(interval != null) {
+            clearInterval(interval);
+        }
+    },
+    scoreGoal: (team) => {
+        GameStore.goalScored(team);
     }
 };
 

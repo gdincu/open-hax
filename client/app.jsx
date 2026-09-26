@@ -1,11 +1,9 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
-import { Router, Route, IndexRoute, NotFoundRoute } from 'react-router';
-import { browserHistory } from 'react-router';
 
 import Layout from './layout';
 import Game from './game'
 
+// Single local game: no routes/rooms — both players share this one screen.
 class App extends React.Component {
 
 	constructor(props) {
@@ -13,12 +11,9 @@ class App extends React.Component {
 	}
 
 	render() {
-		return (<Router history={browserHistory}>
-					<Route path="/" component={ Layout }>
-						<IndexRoute component={ Game } />
-						<Route path="room(/:id_room)" component={ Game } />
-			        </Route>
-				</Router>);
+		return (<Layout>
+					<Game />
+				</Layout>);
 	}
 }
 

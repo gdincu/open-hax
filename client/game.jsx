@@ -1,7 +1,6 @@
 
 import React from 'react';
 
-import Chat from './Components/ChatComponent';
 import Field from './Components/Field';
 import Line from './Components/Field/line';
 import Circle from './Components/Field/circle';
@@ -10,13 +9,14 @@ import Arc from './Components/Field/arc';
 import Goal from './Components/Field/goal';
 import Player from './Components/Player';
 import Ball from './Components/Ball';
-import Room from './Components/Room';
 import Collisions from './collisions';
 
 import materials from './materials';
 import SoundManager from './SoundManager';
 
 import GameActions from './Actions/GameActions';
+import KeyboardInput from './Input/KeyboardInput';
+import GamepadInput from './Input/GamepadInput';
 
 //small stadium theme
 let lines = [
@@ -259,16 +259,41 @@ class Game extends React.Component {
         this.bounds = new Phaser.Rectangle(0, 0, 860, 460);
         this.childs = [];
         this.onSoundLoad = this.onSoundLoad.bind(this);
+        this.state = { pads: [null, null] };
+        this.onPadChange = this.onPadChange.bind(this);
+        // Goal mouth geometry (must match `goals` below and the wall gaps).
+        this.goalLines = { leftX: 30, rightX: 830, topY: 160, bottomY: 300 };
+        this.goalCooldownUntil = 0;
+    }
+
+    onPadChange() {
+        if (typeof navigator === 'undefined' || !navigator.getGamepads) {
+            return;
+        }
+        let pads = navigator.getGamepads();
+        this.setState({
+            pads: [
+                pads && pads[0] ? pads[0].id : null,
+                pads && pads[1] ? pads[1].id : null
+            ]
+        });
     }
 
     componentDidMount() {
         this.game = new Phaser.Game(this.bounds.width, this.bounds.height, Phaser.AUTO, 'open-hax-game', { preload: () => { this.preload(); }, create: () => { this.create(); }, update: () => { this.update(); } });
-        if (this.props.params != null && this.props.params.id_room != null) {
-            this.room = new Room(this.props.params.id_room);
-            window.room = this.room;
-        }
+
+        window.addEventListener('gamepadconnected', this.onPadChange);
+        window.addEventListener('gamepaddisconnected', this.onPadChange);
 
         GameActions.timerStart();
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('gamepadconnected', this.onPadChange);
+        window.removeEventListener('gamepaddisconnected', this.onPadChange);
+        if (this.game) {
+            this.game.destroy();
+        }
     }
 
     preload() {
@@ -282,6 +307,11 @@ class Game extends React.Component {
     create() {
 
         this.soundManager.create();
+        // Enable Phaser's gamepad manager too (harmless; we poll via
+        // navigator.getGamepads() so USB and Bluetooth look identical).
+        if (this.game.input && this.game.input.gamepad) {
+            this.game.input.gamepad.start();
+        }
         this.game.stage.backgroundColor = '#5F7B48';
         this.game.world.setBounds(0, 0, this.bounds.width, this.bounds.height);
 
@@ -336,8 +366,16 @@ class Game extends React.Component {
         });
 
 
-        this.player = new Player(this.game, materials.player, this.collisions, "home", "ojo", ":)", true);
-        this.player2 = new Player(this.game, materials.player, this.collisions, "away", "oasfsgfdhgdfgdjo", ":(", false);
+        // Local 2P on one PC: pad 0 (e.g. USB) drives home, pad 1 (e.g. BT) drives away.
+        // Each falls back to keyboard so the game stays playable with 0/1 pads:
+        // P1 fallback = arrows + X, P2 fallback = WASD + Space.
+        let p1Input = new GamepadInput(0, new KeyboardInput(this.game, 'arrows'));
+        let p2Input = new GamepadInput(1, new KeyboardInput(this.game, 'wasd'));
+        this.p1Input = p1Input;
+        this.p2Input = p2Input;
+
+        this.player = new Player(this.game, materials.player, this.collisions, "home", "P1", ":)", true, p1Input);
+        this.player2 = new Player(this.game, materials.player, this.collisions, "away", "P2", ":(", true, p2Input);
         this.ball = new Ball(this.game, materials.ball, this.collisions);
 
         this.field.addPlayer(300, 300, this.player);
@@ -355,6 +393,69 @@ class Game extends React.Component {
     			child.update();
     		}
     	});
+        this.checkGoal();
+    }
+
+    // Positional goal detection: the Goal bodies were never wired to the
+    // collision groups (no group/callback/score existed), so no goal could
+    // ever register. The side walls leave a gap at the goal mouth, letting
+    // the ball cross x=30 / x=830 there — detect that crossing instead.
+    checkGoal() {
+        if (!this.ball || !this.ball.sprite || !this.ball.sprite.body) {
+            return;
+        }
+        if (Date.now() < this.goalCooldownUntil) {
+            return;
+        }
+        let x = this.ball.sprite.x;
+        let y = this.ball.sprite.y;
+        if (y < this.goalLines.topY || y > this.goalLines.bottomY) {
+            return;
+        }
+        if (x < this.goalLines.leftX) {
+            // crossed the home (left) line -> away scores
+            this.onGoal('away');
+        } else if (x > this.goalLines.rightX) {
+            // crossed the away (right) line -> home scores
+            this.onGoal('home');
+        }
+    }
+
+    onGoal(team) {
+        this.goalCooldownUntil = Date.now() + 2000;
+        try {
+            if (this.soundManager) {
+                this.soundManager.goal();
+            }
+        } catch (e) {}
+        GameActions.scoreGoal(team);
+        this.resetKickoff();
+    }
+
+    resetBody(sprite, x, y) {
+        if (!sprite || !sprite.body) {
+            return;
+        }
+        try {
+            sprite.body.velocity.x = 0;
+            sprite.body.velocity.y = 0;
+            sprite.body.angularVelocity = 0;
+            sprite.body.angle = 0;
+        } catch (e) {}
+        try {
+            sprite.body.data.velocity[0] = 0;
+            sprite.body.data.velocity[1] = 0;
+        } catch (e) {}
+        sprite.body.x = x;
+        sprite.body.y = y;
+        sprite.x = x;
+        sprite.y = y;
+    }
+
+    resetKickoff() {
+        this.resetBody(this.ball ? this.ball.sprite : null, 430, 230);
+        this.resetBody(this.player ? this.player.sprite : null, 300, 230);
+        this.resetBody(this.player2 ? this.player2.sprite : null, 560, 230);
     }
 
     onSoundLoad () {
@@ -366,9 +467,15 @@ class Game extends React.Component {
     }
 
     render() {
+        let pad0 = this.state.pads[0];
+        let pad1 = this.state.pads[1];
         return  <div className="game">
                     <div id="open-hax-game"></div>
-                    <Chat/>
+                    <div className="pad-status" style={{fontSize: '12px', margin: '6px 0'}}>
+                        <div>P1 (red, home): Gamepad 0 {pad0 ? <span>connected: {pad0}</span> : <span>not detected — arrows + X</span>} — left stick / dpad to move, A / RT to kick</div>
+                        <div>P2 (blue, away): Gamepad 1 {pad1 ? <span>connected: {pad1}</span> : <span>not detected — WASD + Space</span>} — left stick / dpad to move, A / RT to kick</div>
+                        <div style={{opacity: 0.7}}>Tip: press any button on each pad once after page load so the browser exposes it. USB vs Bluetooth makes no difference.</div>
+                    </div>
                 </div>;
     }
 

@@ -25,6 +25,11 @@ class Goal {
                 this.sprite = this.game.add.sprite(startX, startY, graphics.generateTexture());
                 this.game.physics.p2.enable(this.sprite);
                 this.sprite.body.static = true;
+                // Marker only: scoring is done positionally in Game.checkGoal().
+                // The goal body intentionally stays out of the collision groups
+                // so the ball can cross the line instead of bouncing off it.
+                this.sprite.body.fieldElementType = "goal";
+                this.side = this.props.home ? "home" : (this.props.away ? "away" : null);
 	}
 
 	update () {

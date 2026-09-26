@@ -55,7 +55,6 @@ module.exports = {
                 test: /\.jsx?$/,
                 exclude: /node_modules/,
                 query: {
-                    plugins: ['react-hot-loader/babel'],
                     presets: ['babel-preset-es2015', 'babel-preset-react'].map(require.resolve)
                 }
             },

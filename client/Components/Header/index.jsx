@@ -10,17 +10,27 @@ class Header extends React.Component {
 			timer: {
 				minutes: 0,
 				seconds: 0
+			},
+			score: {
+				home: 0,
+				away: 0
 			}
 		}
 	}
 
 	componentDidMount() {
 		GameStore.addChangeListener(this._onStoreChange);
+		this._onStoreChange();
+	}
+
+	componentWillUnmount() {
+		GameStore.removeChangeListener(this._onStoreChange);
 	}
 
 	_onStoreChange () {
 		this.setState({
-			timer: GameStore.timer
+			timer: GameStore.timer,
+			score: GameStore.score
 		});
 	}
 
@@ -42,13 +52,13 @@ class Header extends React.Component {
 					<div className="scoreboard">
 						<div className="home">
 							<div className="shirt"></div>
-							<span>0</span>
+							<span>{this.state.score.home}</span>
 						</div>
 						<div className="separator">
 						-
 						</div>
 						<div className="away">
-							<span>0</span>
+							<span>{this.state.score.away}</span>
 							<div className="shirt"></div>
 						</div>
 					</div>

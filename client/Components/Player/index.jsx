@@ -1,6 +1,11 @@
+import KeyboardInput from '../../Input/KeyboardInput';
+
 class Player {
 
-    constructor(game, material, collisions, type, nickname, avatar, isMe) {
+    // inputSource: { getMove() -> {x,y,left,right,up,down}, isKickDown() -> bool }.
+    // If omitted and isMe is true, defaults to keyboard arrows+X (backwards compat).
+    // Any player with an inputSource is locally controlled, regardless of isMe.
+    constructor(game, material, collisions, type, nickname, avatar, isMe, inputSource) {
 
         this.game = game;
         this.avatar = avatar;
@@ -26,8 +31,16 @@ class Player {
         this.borderColor = 0x000000;
         this.activeBorderColor = 0xffffff;
 
-        this.cursors = game.input.keyboard.createCursorKeys();
-        this.cursors.x = this.game.input.keyboard.addKey(Phaser.Keyboard.X);
+        if (inputSource) {
+            this.inputSource = inputSource;
+        } else if (isMe) {
+            // backwards compat: single keyboard player
+            this.inputSource = new KeyboardInput(game, 'arrows');
+        } else {
+            this.inputSource = null;
+        }
+        // Locally controlled on this PC (keyboard or any gamepad).
+        this.localControlled = !!this.inputSource;
 
         this.touchingBall = false;
 
@@ -75,7 +88,7 @@ class Player {
             fontWeight: 500
         }
 
-        if (!this.isMe) {
+        if (!this.localControlled && !this.isMe) {
             this.nicknameText = new Phaser.Text(this.game, 0, 20, this.nickname, style);
             this.nicknameText.x = 0 - this.nicknameText.width/2;
             this.sprite.addChild(this.nicknameText);
@@ -97,7 +110,7 @@ class Player {
         graphics.beginFill(this.color, 1);
         graphics.drawCircle(30, 30, 30);
 
-        if (this.isMe) {
+        if (this.localControlled || this.isMe) {
             graphics.endFill();
             graphics.lineStyle(3, 0xffffff, 0.2);
             graphics.beginFill(this.color, 0);
@@ -111,74 +124,72 @@ class Player {
     //FIXME: Different acceleration values when forces applyed in two axes at the same time
     update() {
 
-        this.constrainVelocity(this.sprite, 10);
+        if (!this.sprite || !this.sprite.body) {
+            return;
+        }
 
-        if (this.isMe) {
+        this.constrainVelocity(this.sprite, 15);
 
-            let thrust = 250;
+        if (!this.localControlled || !this.inputSource) {
+            return;
+        }
 
-            //change force when angle is 45º
-            if( (this.cursors.left.isDown && this.cursors.up.isDown)   ||
-                (this.cursors.left.isDown && this.cursors.down.isDown) ||
-                (this.cursors.right.isDown && this.cursors.up.isDown)   ||
-                (this.cursors.right.isDown && this.cursors.down.isDown)) {
+        const BASE_THRUST = 375;
+        let move = this.inputSource.getMove();
+        let kickDown = this.inputSource.isKickDown();
 
-                thrust = Math.sqrt(Math.pow(thrust,2)/2);
+        // Analog stick gives x/y in -1..1; dpad/keyboard gives -1/0/1.
+        // Phaser P2 thrust() pushes along body.angle where 0=up, 90=right.
+        let mx = move.x || 0;
+        let my = move.y || 0;
+        let mag = Math.sqrt(mx * mx + my * my);
+        if (mag > 0.01) {
+            if (mag > 1) {
+                mx = mx / mag;
+                my = my / mag;
+                mag = 1;
+            }
+            let angle = Math.atan2(mx, -my) * (180 / Math.PI);
+            if (angle < 0) {
+                angle += 360;
+            }
+            this.sprite.body.angle = angle;
+            this.sprite.body.thrust(BASE_THRUST * Math.min(1, mag));
+        }
+
+
+        if (kickDown && this.touchingBall && this.ballBody) {
+
+            let p2 = this.ballBody;
+            let p1 = this.sprite.body;
+
+
+            let a = Math.abs(p1.x - p2.x);
+            let b = Math.abs(p1.y - p2.y);
+            let alpha = Math.atan(a/b) * (180/3.14159);
+
+            /*Cuadrant adjustment*/
+            if (p1.y < p2.y && p1.x < p2.x) {
+                alpha = 180 - alpha;
             }
 
-
-            if (this.cursors.left.isDown) {
-                this.sprite.body.angle = 270;
-                this.sprite.body.thrust(thrust);
-            } else if (this.cursors.right.isDown) {
-                this.sprite.body.angle = 90;
-                this.sprite.body.thrust(thrust);
+            if (p1.x > p2.x && p1.y < p2.y) {
+                alpha =  alpha + 180;
             }
 
-            if (this.cursors.up.isDown) {
-                this.sprite.body.angle = 0;
-                this.sprite.body.thrust(thrust);
-            } else if (this.cursors.down.isDown) {
-                this.sprite.body.angle = 180;
-                this.sprite.body.thrust(thrust);
+            if (p1.x > p2.x && p1.y > p2.y) {
+                alpha =  360 - alpha;
             }
-
-            
-
-
-            if (this.cursors.x.isDown && this.touchingBall && this.ballBody) {
-
-                let p2 = this.ballBody;
-                let p1 = this.sprite.body;
+            this.ballBody.angle = alpha;
+            this.ballBody.thrust(4000);
+            this.game.sound.play("kick");
+        }
 
 
-                let a = Math.abs(p1.x - p2.x);
-                let b = Math.abs(p1.y - p2.y);
-                let alpha = Math.atan(a/b) * (180/3.14159);
-
-                /*Cuadrant adjustment*/
-                if (p1.y < p2.y && p1.x < p2.x) {
-                    alpha = 180 - alpha;
-                }
-
-                if (p1.x > p2.x && p1.y < p2.y) {
-                    alpha =  alpha + 180;
-                }
-
-                if (p1.x > p2.x && p1.y > p2.y) {
-                    alpha =  360 - alpha;
-                }
-                this.ballBody.angle = alpha;
-                this.ballBody.thrust(4000);
-                this.game.sound.play("kick");
-            }
-
-
-            if (this.cursors.x.isDown) {
-                this.sprite.loadTexture(this.renderGraphics(true).generateTexture());
-            } else {
-                this.sprite.loadTexture(this.renderGraphics(false).generateTexture());
-            }
+        if (kickDown) {
+            this.sprite.loadTexture(this.renderGraphics(true).generateTexture());
+        } else {
+            this.sprite.loadTexture(this.renderGraphics(false).generateTexture());
         }
 
     }

@@ -1,21 +1,19 @@
-import ActionTypes from '../Constants/ActionTypes';
-import AppDispatcher from '../Dispatcher/AppDispatcher';
-import { EventEmitter } from 'events';
-import { assign } from 'lodash';
+// Dependency-free match store (timer + score) for the local 2P game.
+// Tiny pub/sub replaces the old flux Dispatcher/EventEmitter/lodash setup.
+// Public API is unchanged, so Header keeps working as-is.
 
-const _ =  {
-    assign: assign
-};
+class GameClass {
 
-class GameClass extends EventEmitter {
-
-    constructor(props) {
-        super(props);
-        this.eventName = 'GAME_CHANGE_EVENT';
+    constructor() {
+        this.listeners = [];
         this.timer = {
             minutes: 0,
             seconds: 0
-        }
+        };
+        this.score = {
+            home: 0,
+            away: 0
+        };
     }
 
     setTimer(data) {
@@ -23,27 +21,29 @@ class GameClass extends EventEmitter {
         this.emitChange();
     }
 
+    goalScored(team) {
+        if (team !== 'home' && team !== 'away') {
+            return;
+        }
+        this.score[team]++;
+        this.emitChange();
+    }
+
     emitChange() {
-        this.emit(this.eventName);
+        this.listeners.slice().forEach((callback) => {
+            callback();
+        });
     }
 
     addChangeListener(callback) {
-        this.on(this.eventName, callback);
+        this.listeners.push(callback);
     }
 
     removeChangeListener(callback) {
-        this.removeListener(this.eventName, callback);
+        this.listeners = this.listeners.filter((listener) => listener !== callback);
     }
 }
 
-const Game = new GameClass;
-
-Game.dispatchToken = AppDispatcher.register((action) => {
-    switch(action.actionType) {
-        case ActionTypes.TIMER_SET:
-            Game.setTimer(action.data);
-            break;
-    }
-});
+const Game = new GameClass();
 
 export default Game;
